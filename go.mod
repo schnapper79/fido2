@@ -1,4 +1,4 @@
-module fido2
+module github.com/schnapper79/fido2
 
 go 1.18
 
