@@ -1,4 +1,4 @@
-package fido2
+package main
 
 import (
 	"fido2/ctaphid"
