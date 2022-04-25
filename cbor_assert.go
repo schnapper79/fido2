@@ -68,6 +68,7 @@ type AssertionReplyObjectParsed struct {
 	Signature           []byte
 	User                *PublicKeyCredentialUserEntity
 	NumberOfCredentials uint
+	AuthDataRaw         []byte
 }
 
 func (c *CTAP) GetAssertion(rpId string, cdh []byte, allowList [][]byte, pinAuth []byte, withHMAC bool, salt1 []byte, salt2 []byte) (*AssertionReplyObjectParsed, error) {
@@ -109,6 +110,7 @@ func assertionParser(raw []byte, sharedSecret []byte) (*AssertionReplyObjectPars
 		Signature:           assert.Signature,
 		User:                assert.User,
 		NumberOfCredentials: assert.NumberOfCredentials,
+		AuthDataRaw:         assert.AuthData,
 	}
 
 	if (out.AuthData.Extensions != nil) && (out.AuthData.Extensions.HmacSecret != nil) && (len(out.AuthData.Extensions.HmacSecret)) > 0 {

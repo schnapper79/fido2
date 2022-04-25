@@ -81,7 +81,6 @@ type AuthenticatorData struct {
 	Counter     uint32
 	AttCredData *AttCredDataObject
 	Extensions  *ExtensionsList
-	Raw         []byte
 }
 
 // Use cbor.RawMessage to delay unmarshaling (CrvOrNOrK's data type depends on Kty's value).
@@ -147,7 +146,6 @@ func credentialsParser(raw []byte) (*AttestationObject, error) {
 
 func parseAttestAuthData(data []byte) (*AuthenticatorData, error) {
 	var auth AuthenticatorData
-	auth.Raw = data
 	auth.RpIdHash = data[0:32]
 	auth.Flags = data[32]
 	auth.Counter = uint32(data[33])<<24 | uint32(data[34])<<16 | uint32(data[35])<<8 | uint32(data[36])
