@@ -97,9 +97,16 @@ func (p *packet) FromReport(in []byte) (bool, error) {
 		p.DATA = append(p.DATA, in[7:]...)
 		p.seq = 0
 	}
-	if uint32(len(p.DATA)) < uint32(p.BCNTL)+uint32(p.BCNTH)<<8 {
+	want := uint32(p.BCNTL) + uint32(p.BCNTH)<<8
+	if uint32(len(p.DATA)) < want {
 		return false, nil //need more data
 	}
+	// Trim to the length the device announced in BCNT. Every HID report is a
+	// fixed 64 bytes and the last one is zero-padded, so without this the
+	// padding travels with the payload: a two-report answer hands the caller
+	// 116 bytes instead of the announced length, and cbor.Unmarshal rejects it
+	// with "extraneous data". Single-report answers are padded too.
+	p.DATA = p.DATA[:want]
 	return true, nil //finally done
 
 }

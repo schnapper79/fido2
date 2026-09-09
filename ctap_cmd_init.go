@@ -34,7 +34,12 @@ func (c *CTAP) SendInitCommand() (*INIT_INFO, error) {
 		newCid := uint32(infoRaw[8]) | uint32(infoRaw[9])<<8 | uint32(infoRaw[10])<<16 | uint32(infoRaw[11])<<24
 		c.dev.setNewCID(newCid)
 
-		cf := uint16(infoRaw[16]) | uint16(infoRaw[17])<<8
+		// The INIT response is exactly 17 bytes: 8 nonce, 4 channel id, 1
+		// protocol version, 3 device version, 1 capability flags. The flags
+		// are a SINGLE byte at index 16 — reading a second one at index 17
+		// runs past the end. It only ever worked because the reassembled
+		// payload still carried its report padding.
+		cf := uint16(infoRaw[16])
 		return &INIT_INFO{
 			Protocol_Version:     infoRaw[12],
 			Major_Device_Version: infoRaw[13],
