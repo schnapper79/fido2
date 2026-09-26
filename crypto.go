@@ -3,24 +3,43 @@ package fido2
 import (
 	"crypto/aes"
 	"crypto/cipher"
-	"crypto/ecdsa"
-	"crypto/elliptic"
+	"crypto/ecdh"
 	"crypto/hmac"
 	"crypto/rand"
 	"crypto/sha256"
-	"math/big"
+	"fmt"
 )
 
-func getSharedSecret(x, y []byte) ([]byte, *ecdsa.PublicKey) {
-	private, px, py, _ := elliptic.GenerateKey(elliptic.P256(), rand.Reader)
-
-	var pubb_x, pubb_y big.Int
-	pubb_x = *pubb_x.SetBytes(x)
-	pubb_y = *pubb_y.SetBytes(y)
-
-	a, _ := elliptic.P256().ScalarMult(&pubb_x, &pubb_y, private)
-	shared1 := sha256.Sum256(a.Bytes())
-	return shared1[:], &ecdsa.PublicKey{elliptic.P256(), px, py}
+// getSharedSecret runs the platform side of CTAP2 PIN protocol 1: a fresh
+// P-256 key, ECDH with the authenticator's key-agreement point (x, y), and
+// SHA-256 over the 32-byte x coordinate of the product.
+//
+// The point comes off the USB bus and is validated before use (on the curve,
+// not the point at infinity, coordinates of exactly 32 bytes): an unchecked
+// point let whoever sits on the bus force the shared secret and read the PIN,
+// the PIN token and every hmac-secret output. crypto/ecdh also keeps the
+// leading zero bytes that big.Int.Bytes() dropped — the old code hashed a
+// shortened x (and sent a shortened platform key) about once in 256 runs, which
+// looked like a wrong PIN.
+func getSharedSecret(x, y []byte) (shared, platformX, platformY []byte, err error) {
+	if len(x) != 32 || len(y) != 32 {
+		return nil, nil, nil, fmt.Errorf("fido2: key agreement point must have 32-byte coordinates (got %d, %d)", len(x), len(y))
+	}
+	peer, err := ecdh.P256().NewPublicKey(append(append([]byte{4}, x...), y...))
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("fido2: invalid key agreement point: %w", err)
+	}
+	priv, err := ecdh.P256().GenerateKey(rand.Reader)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	z, err := priv.ECDH(peer)
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("fido2: ECDH: %w", err)
+	}
+	sum := sha256.Sum256(z)
+	pub := priv.PublicKey().Bytes() // 0x04 || X(32) || Y(32)
+	return sum[:], pub[1:33], pub[33:65], nil
 }
 
 func aes256_Enc(bPlaintext []byte, bKey []byte, lmin int) []byte {

@@ -1,6 +1,8 @@
 package fido2
 
 import (
+	"fmt"
+
 	"github.com/fxamacker/cbor/v2"
 )
 
@@ -122,11 +124,17 @@ func encryptPin(pin []byte, secret *SharedSecret) ([]byte, error) {
 }
 
 func makeSharedSecret(in *CoseKey) (*SharedSecret, error) {
-	sharedSecret, pubKey := getSharedSecret(in.XOrE, in.Y)
+	if in == nil {
+		return nil, fmt.Errorf("fido2: authenticator sent no key agreement")
+	}
+	sharedSecret, px, py, err := getSharedSecret(in.XOrE, in.Y)
+	if err != nil {
+		return nil, err
+	}
 	out := &SharedSecret{
 		SharedSecret: sharedSecret,
-		Publickey_X:  pubKey.X.Bytes(),
-		Publickey_Y:  pubKey.Y.Bytes(),
+		Publickey_X:  px,
+		Publickey_Y:  py,
 	}
 	return out, nil
 }
